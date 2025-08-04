@@ -1,12 +1,9 @@
 const connectDB = require("./config/DBconnect");
-const Category = require("./models/categories"); // adjust path if needed
+const Category = require("./models/categories");
 
 const seedCategories = async () => {
   try {
     await connectDB();
-
-    // Optional: Clear existing categories
-    await Category.deleteMany();
 
     const categories = [
       {
@@ -51,8 +48,12 @@ const seedCategories = async () => {
       },
     ];
 
-    const created = await Category.insertMany(categories);
-    console.log(`✅ Inserted ${created.length} categories.`);
+    for (const category of categories) {
+      await Category.findOneAndDelete({ name: category.name });
+      await Category.create(category);
+    }
+
+    console.log(`✅ Seeded ${categories.length} categories.`);
     process.exit(0);
   } catch (err) {
     console.error("❌ Error seeding categories:", err.message);
