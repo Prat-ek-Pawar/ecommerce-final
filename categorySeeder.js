@@ -98,19 +98,15 @@ const categories = [
 
 const seedCategories = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB connected");
 
-    await Category.deleteMany(); // Clear old data
+    await Category.deleteMany();
     console.log("🧹 Old categories cleared");
 
-    const result = await Category.insertMany(categories);
-    console.log(`🌱 Seeded ${result.length} categories`);
-
-    process.exit(0);
+    await Category.insertMany(categories);
+    console.log("✅ Categories seeded successfully");
+    process.exit();
   } catch (err) {
     console.error("❌ Seeding error:", err.message);
     process.exit(1);
