@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
-
+const dotenc=require('dotenv').config()
 const connectDB = async () => {
   try {
-    const mongoURI = "mongodb://127.0.0.1:27017/ecom"; // ✅ Hardcoded URI
+    const mongoURI = process.env.MONGO_URI; // ✅ Hardcoded URI
     const conn = await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
