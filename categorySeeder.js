@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const Category = require("./models/category"); // adjust path if needed
+const Category = require("./models/categories"); // adjust path if needed
 
 dotenv.config();
 
