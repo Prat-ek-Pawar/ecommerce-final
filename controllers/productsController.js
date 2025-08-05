@@ -242,6 +242,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     images,
     price: price || 0,
     vendor: vendorId,
+    isApproved: true,
   });
 
   res.status(201).json({
