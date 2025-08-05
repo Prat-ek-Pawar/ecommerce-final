@@ -827,12 +827,85 @@ const getDaysRemaining = (endDate) => {
   const now = new Date();
   return Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)));
 };
+const createVendor = asyncHandler(async (req, res) => {
+  const {
+    email,
+    password,
+    phone,
+    companyName,
+    address,
+    description,
+    productCategory,
+    avatar,
+    subscription,
+  } = req.body;
+
+  // Validate required fields manually (schema will also validate later)
+  if (
+    !email ||
+    !password ||
+    !companyName ||
+    !productCategory ||
+    !subscription?.duration
+  ) {
+    return res.status(400).json({
+      message: "Missing required fields",
+    });
+  }
+
+  // Check if vendor already exists
+  const existingVendor = await Vendor.findOne({ email });
+  if (existingVendor) {
+    return res
+      .status(400)
+      .json({ message: "Vendor already registered with this email" });
+  }
+
+  // Validate password (double-check outside schema)
+  const passwordErrors = Vendor.validatePassword(password);
+  if (passwordErrors.length > 0) {
+    return res.status(400).json({
+      message: "Password validation failed",
+      errors: passwordErrors,
+    });
+  }
+
+  try {
+    // Create vendor
+    const vendor = await Vendor.create({
+      email,
+      password, // schema will hash it
+      phone,
+      companyName,
+      address,
+      description,
+      productCategory,
+      avatar,
+      subscription, // includes: duration
+    });
+
+    // Remove password before sending response
+    const vendorObj = vendor.toObject();
+    delete vendorObj.password;
+
+    res.status(201).json({
+      message: "Vendor created successfully",
+      vendor: vendorObj,
+    });
+  } catch (error) {
+    console.error("Error creating vendor:", error);
+    res
+      .status(500)
+      .json({ message: "Something went wrong", error: error.message });
+  }
+});
 
 module.exports = {
   getAllVendors,
   getVendor,
   updateVendor,
   deleteVendor,
+  createVendor,
   updateSubscription,
   approveVendor,
   toggleLockVendor,

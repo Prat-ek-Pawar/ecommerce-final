@@ -17,6 +17,7 @@ const {
   approveVendor,
   toggleLockVendor,
   searchVendors,
+  createVendor ,
   getVendorAnalytics,
 } = require("../controllers/Vendors/vendorsController");
 
@@ -245,7 +246,7 @@ router.patch(
 );
 
 // ===== SUBSCRIPTION MANAGEMENT ROUTES (Admin) =====
-
+router.post("/admin/create-vendor", protectSuperAdmin,createVendor);
 // @desc    Get subscription statistics
 // @route   GET /api/vendor/admin/subscription-stats
 // @access  Private (Admin)
