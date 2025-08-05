@@ -1,7 +1,9 @@
+
 const Product = require("../models/products");
 const Vendor = require("../models/vendor");
 const asyncHandler = require("../utils/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
+const { uploadMultipleToCloudinary } = require("../utils/cloudinary");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
@@ -156,6 +158,11 @@ exports.getSingleProduct = asyncHandler(async (req, res, next) => {
 // @desc    Create new product
 // @route   POST /api/products/create
 // @access  Private (Vendor)
+// Updated createProduct controller with Cloudinary integration
+
+// @desc    Create new product
+// @route   POST /api/products/create
+// @access  Private (Vendor)
 exports.createProduct = asyncHandler(async (req, res, next) => {
   const vendorId = req.user.id;
   const { title, description, category, keywords, price } = req.body;
@@ -185,14 +192,42 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // Handle file uploads
-  const images = req.files
-    ? req.files.map((file, index) => ({
-        url: `/uploads/products/${file.filename}`,
-        public_id: file.filename,
-        index: index,
-      }))
-    : [];
+  let images = [];
+
+  // Handle file uploads to Cloudinary
+  if (req.files && req.files.length > 0) {
+    try {
+      console.log(`📤 Uploading ${req.files.length} images to Cloudinary...`);
+
+      // Get file paths from multer
+      const filePaths = req.files.map(file => file.path);
+
+      // Upload to Cloudinary
+      const cloudinaryResult = await uploadMultipleToCloudinary(filePaths, "products");
+
+      if (cloudinaryResult.successful && cloudinaryResult.successful.length > 0) {
+        // Map successful uploads to image schema format
+        images = cloudinaryResult.successful.map((upload, index) => ({
+          url: upload.url,           // Cloudinary secure_url
+          public_id: upload.public_id, // Cloudinary public_id
+          index: index,
+        }));
+
+        console.log(`✅ Successfully uploaded ${images.length} images to Cloudinary`);
+      }
+
+      // Log any failed uploads
+      if (cloudinaryResult.failed && cloudinaryResult.failed.length > 0) {
+        console.warn(`⚠️ Failed to upload ${cloudinaryResult.failed.length} images:`,
+          cloudinaryResult.failed.map(f => f.error).join(", "));
+      }
+
+    } catch (error) {
+      console.error("❌ Cloudinary upload error:", error.message);
+      // Continue without images rather than failing completely
+      images = [];
+    }
+  }
 
   // Create product
   const product = await Product.create({
