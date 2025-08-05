@@ -2316,18 +2316,301 @@ GET /api/vendor/search?q=tech&category=64a7b8c9d1234567890abcde&includeStats=tru
       "productCategory": {
         "_id": "64a7b8c9d1234567890abcde",
 ```
-## Create a vendor (superadmin)
-/api/vendors/admin/create-vendor
+# Create Vendor API Documentation
 
+## Route
+```
+POST /api/vendor/admin/create-vendor
+```
+
+## Authentication
+- **Required**: Super Admin authentication
+- **Method**: Include JWT token in cookie named `token` OR Authorization header
+- **Cookie**: `token=your_jwt_token_here`
+- **Header**: `Authorization: Bearer your_jwt_token_here`
+
+## Request Body Structure
+
+### Required Fields
+```json
 {
-  "name": "Tech Store",
   "email": "vendor@example.com",
-  "phone": "9876543210",
-  "company": "Tech Innovations Pvt Ltd",
-  "location": "Bangalore",
-  "description": "We sell tech and gadgets.",
-  "category": "Electronics",
-  "website": "https://techstore.com"
+  "password": "SecurePass123!",
+  "companyName": "ABC Company Ltd",
+  "productCategory": "64f5b2c3d1e2a3b4c5d6e7f8"
 }
+```
 
-send this to body with autheerisation headers
+### Complete Request Body (All Fields)
+```json
+{
+  "email": "vendor@example.com",
+  "password": "SecurePass123!",
+  "phone": "+1234567890",
+  "companyName": "ABC Company Ltd",
+  "address": {
+    "street": "123 Main Street",
+    "city": "New York",
+    "state": "NY",
+    "country": "USA",
+    "postalCode": "10001"
+  },
+  "description": "We are a leading supplier of electronics and gadgets",
+  "productCategory": "64f5b2c3d1e2a3b4c5d6e7f8",
+  "avatar": {
+    "url": "https://example.com/avatar.jpg",
+    "public_id": "avatar_123"
+  },
+  "subscription": {
+    "duration": 3
+  },
+  "maxProductLimit": 25,
+  "isApproved": true
+}
+```
+
+## Field Validation Rules
+
+### Email
+- **Required**: Yes
+- **Format**: Valid email format
+- **Unique**: Must not exist in database
+- **Example**: `"vendor@company.com"`
+
+### Password
+- **Required**: Yes
+- **Minimum Length**: 8 characters
+- **Must Contain**:
+  - At least 1 uppercase letter (A-Z)
+  - At least 1 lowercase letter (a-z)
+  - At least 1 number (0-9)
+  - At least 1 special character (@$!%*?&)
+- **Example**: `"SecurePass123!"`
+
+### Phone
+- **Required**: No
+- **Format**: International format accepted
+- **Example**: `"+1234567890"` or `"1234567890"`
+
+### Company Name
+- **Required**: Yes
+- **Min Length**: 2 characters
+- **Max Length**: 100 characters
+- **Example**: `"ABC Electronics Ltd"`
+
+### Address (Optional Object)
+```json
+{
+  "street": "123 Business Ave", // Max 200 chars
+  "city": "New York",           // Max 50 chars
+  "state": "NY",                // Max 50 chars
+  "country": "USA",             // Max 50 chars
+  "postalCode": "10001"         // Max 20 chars
+}
+```
+
+### Product Category
+- **Required**: Yes
+- **Type**: Valid MongoDB ObjectId
+- **Reference**: Must exist in Categories collection
+- **Example**: `"64f5b2c3d1e2a3b4c5d6e7f8"`
+
+### Subscription
+- **Required**: No (defaults to 1 month)
+- **Duration Options**: 1, 3, 6, or 12 months
+- **Default Plan Mapping**:
+  - 1 month → "basic_1m"
+  - 3 months → "standard_3m"
+  - 6 months → "premium_6m"
+  - 12 months → "enterprise_12m"
+
+### Avatar (Optional)
+```json
+{
+  "url": "https://cloudinary.com/image.jpg",
+  "public_id": "avatar_cloudinary_id"
+}
+```
+
+### Max Product Limit
+- **Required**: No
+- **Default**: 10
+- **Range**: 1-1000
+- **Example**: `25`
+
+## Response Format
+
+### Success Response (201 Created)
+```json
+{
+  "success": true,
+  "message": "Vendor created successfully",
+  "data": {
+    "vendor": {
+      "_id": "64f5b2c3d1e2a3b4c5d6e7f9",
+      "email": "vendor@example.com",
+      "companyName": "ABC Company Ltd",
+      "phone": "+1234567890",
+      "address": {
+        "street": "123 Main Street",
+        "city": "New York",
+        "state": "NY",
+        "country": "USA",
+        "postalCode": "10001"
+      },
+      "description": "Leading electronics supplier",
+      "productCategory": {
+        "_id": "64f5b2c3d1e2a3b4c5d6e7f8",
+        "name": "Electronics"
+      },
+      "avatar": {
+        "url": "https://example.com/avatar.jpg",
+        "public_id": "avatar_123"
+      },
+      "isActive": true,
+      "isApproved": true,
+      "isLocked": false,
+      "approvedBy": "64f5b2c3d1e2a3b4c5d6e7f0",
+      "approvedAt": "2024-01-15T10:30:00.000Z",
+      "emailVerified": true,
+      "maxProductLimit": 25,
+      "subscription": {
+        "duration": 3,
+        "startDate": "2024-01-15T10:30:00.000Z",
+        "endDate": "2024-04-15T10:30:00.000Z",
+        "currentPlan": "standard_3m",
+        "totalPurchases": 0,
+        "lastPurchaseDate": "2024-01-15T10:30:00.000Z"
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+### Error Responses
+
+#### 400 Bad Request - Missing Fields
+```json
+{
+  "success": false,
+  "error": "Missing required fields: email, companyName"
+}
+```
+
+#### 400 Bad Request - Invalid Password
+```json
+{
+  "success": false,
+  "error": "Password validation failed: Password must contain at least one uppercase letter, Password must contain at least one number"
+}
+```
+
+#### 400 Bad Request - Duplicate Email
+```json
+{
+  "success": false,
+  "error": "Vendor already registered with this email"
+}
+```
+
+#### 401 Unauthorized
+```json
+{
+  "success": false,
+  "error": "Access denied. No token provided."
+}
+```
+
+#### 403 Forbidden
+```json
+{
+  "success": false,
+  "error": "Access denied. Super Admin access required."
+}
+```
+
+## Frontend Implementation Example
+
+### JavaScript/Fetch
+```javascript
+const createVendor = async (vendorData) => {
+  try {
+    const response = await fetch('/api/vendor/admin/create-vendor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Include token in header if not using cookies
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      credentials: 'include', // Include cookies
+      body: JSON.stringify(vendorData)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to create vendor');
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Create vendor error:', error);
+    throw error;
+  }
+};
+```
+
+### React/Axios Example
+```javascript
+import axios from 'axios';
+
+const createVendor = async (vendorData) => {
+  try {
+    const response = await axios.post('/api/vendor/admin/create-vendor', vendorData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      withCredentials: true // Include cookies
+    });
+
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+```
+
+## Common Issues & Solutions
+
+### 1. Authentication Errors
+- **Issue**: "Access denied. No token provided."
+- **Solution**: Ensure JWT token is included in cookie or Authorization header
+- **Check**: Token should be named exactly `token` in cookies
+
+### 2. Password Validation Errors
+- **Issue**: Password doesn't meet requirements
+- **Solution**: Ensure password has:
+  - 8+ characters
+  - 1 uppercase letter
+  - 1 lowercase letter
+  - 1 number
+  - 1 special character (@$!%*?&)
+
+### 3. Missing Fields
+- **Issue**: "Missing required fields"
+- **Solution**: Ensure all required fields are provided:
+  - email
+  - password
+  - companyName
+  - productCategory
+
+### 4. Invalid Product Category
+- **Issue**: Category validation fails
+- **Solution**: Use valid MongoDB ObjectId that exists in Categories collection
+
+### 5. Duplicate Email
+- **Issue**: "Vendor already registered with this email"
+- **Solution**: Use a different email address or check existing vendor

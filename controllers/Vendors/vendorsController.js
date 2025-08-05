@@ -827,7 +827,7 @@ const getDaysRemaining = (endDate) => {
   const now = new Date();
   return Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)));
 };
-const createVendor = asyncHandler(async (req, res) => {
+const createVendor = asyncHandler(async (req, res, next) => {
   const {
     email,
     password,
@@ -838,65 +838,139 @@ const createVendor = asyncHandler(async (req, res) => {
     productCategory,
     avatar,
     subscription,
+    maxProductLimit,
+    isApproved = true, // Default to approved for admin creation
   } = req.body;
 
-  // Validate required fields manually (schema will also validate later)
+  // Validate required fields manually
+  const requiredFields = { email, password, companyName, productCategory };
+  const missingFields = Object.entries(requiredFields)
+    .filter(
+      ([key, value]) =>
+        !value || (typeof value === "string" && value.trim() === "")
+    )
+    .map(([key]) => key);
+
+  if (missingFields.length > 0) {
+    return next(
+      new ErrorResponse(
+        `Missing required fields: ${missingFields.join(", ")}`,
+        400
+      )
+    );
+  }
+
+  // Validate subscription duration if provided
   if (
-    !email ||
-    !password ||
-    !companyName ||
-    !productCategory ||
-    !subscription?.duration
+    subscription?.duration &&
+    ![1, 3, 6, 12].includes(Number(subscription.duration))
   ) {
-    return res.status(400).json({
-      message: "Missing required fields",
-    });
-  }
-
-  // Check if vendor already exists
-  const existingVendor = await Vendor.findOne({ email });
-  if (existingVendor) {
-    return res
-      .status(400)
-      .json({ message: "Vendor already registered with this email" });
-  }
-
-  // Validate password (double-check outside schema)
-  const passwordErrors = Vendor.validatePassword(password);
-  if (passwordErrors.length > 0) {
-    return res.status(400).json({
-      message: "Password validation failed",
-      errors: passwordErrors,
-    });
+    return next(
+      new ErrorResponse(
+        "Subscription duration must be 1, 3, 6, or 12 months",
+        400
+      )
+    );
   }
 
   try {
-    // Create vendor
-    const vendor = await Vendor.create({
-      email,
-      password, // schema will hash it
-      phone,
-      companyName,
-      address,
-      description,
-      productCategory,
-      avatar,
-      subscription, // includes: duration
-    });
+    // Check if vendor already exists
+    const existingVendor = await Vendor.findOne({ email: email.toLowerCase() });
+    if (existingVendor) {
+      return next(
+        new ErrorResponse("Vendor already registered with this email", 400)
+      );
+    }
 
-    // Remove password before sending response
-    const vendorObj = vendor.toObject();
-    delete vendorObj.password;
+    // Validate password using schema method
+    const passwordErrors = Vendor.validatePassword(password);
+    if (passwordErrors.length > 0) {
+      return next(
+        new ErrorResponse(
+          `Password validation failed: ${passwordErrors.join(", ")}`,
+          400
+        )
+      );
+    }
+
+    // Calculate subscription dates
+    const subscriptionDuration = subscription?.duration || 1;
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + subscriptionDuration);
+
+    // Map duration to plan
+    const planMap = {
+      1: "basic_1m",
+      3: "standard_3m",
+      6: "premium_6m",
+      12: "enterprise_12m",
+    };
+
+    // Create vendor object
+    const vendorData = {
+      email: email.toLowerCase().trim(),
+      password, // Will be hashed by pre-save middleware
+      phone: phone?.trim(),
+      companyName: companyName.trim(),
+      address: address || {},
+      description: description?.trim(),
+      productCategory,
+      avatar: avatar || {},
+      isApproved,
+      isLocked: false,
+      approvedBy: req.user.id, // Super admin who created it
+      approvedAt: isApproved ? new Date() : null,
+      subscription: {
+        duration: subscriptionDuration,
+        startDate,
+        endDate,
+        currentPlan: planMap[subscriptionDuration],
+        totalPurchases: 0,
+        lastPurchaseDate: new Date(),
+      },
+      maxProductLimit: maxProductLimit || 10,
+      emailVerified: true, // Admin created, so auto-verified
+    };
+
+    // Create vendor
+    const vendor = await Vendor.create(vendorData);
+
+    // Remove password from response
+    const vendorResponse = vendor.toObject();
+    delete vendorResponse.password;
+
+    console.log(
+      `✅ Vendor created by admin: ${companyName} (${email}) by ${req.user.email}`
+    );
 
     res.status(201).json({
+      success: true,
       message: "Vendor created successfully",
-      vendor: vendorObj,
+      data: {
+        vendor: vendorResponse,
+      },
     });
   } catch (error) {
-    console.error("Error creating vendor:", error);
-    res
-      .status(500)
-      .json({ message: "Something went wrong", error: error.message });
+    console.error("❌ Error creating vendor:", error);
+
+    // Handle Mongoose validation errors
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
+      return next(
+        new ErrorResponse(`Validation Error: ${errors.join(", ")}`, 400)
+      );
+    }
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return next(
+        new ErrorResponse(`Vendor with this ${field} already exists`, 400)
+      );
+    }
+
+    return next(new ErrorResponse("Error creating vendor", 500));
   }
 });
 
