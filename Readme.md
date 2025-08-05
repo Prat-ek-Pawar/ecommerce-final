@@ -2316,3 +2316,18 @@ GET /api/vendor/search?q=tech&category=64a7b8c9d1234567890abcde&includeStats=tru
       "productCategory": {
         "_id": "64a7b8c9d1234567890abcde",
 ```
+## Create a vendor (superadmin)
+/api/vendors/admin/create-vendor
+
+{
+  "name": "Tech Store",
+  "email": "vendor@example.com",
+  "phone": "9876543210",
+  "company": "Tech Innovations Pvt Ltd",
+  "location": "Bangalore",
+  "description": "We sell tech and gadgets.",
+  "category": "Electronics",
+  "website": "https://techstore.com"
+}
+
+send this to body with autheerisation headers
