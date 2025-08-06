@@ -9,6 +9,7 @@ const approvalEmailTemplate = require("../../emailtemplates/pendingApprovalTempl
 const ErrorResponse = require("../../utils/errorResponse");
 const asyncHandler = require("../../utils/asyncHandler");
 const Vendor = require("../../models/vendor");
+const categories = require("../../models/categories");
 
 // ✅ Step 1: Send OTP
 const sendOtp = asyncHandler(async (req, res, next) => {
@@ -136,13 +137,24 @@ const signupVendor = asyncHandler(async (req, res, next) => {
   await OtpModel.deleteOne({ email });
 
   try {
+    console.log("productCategory ", productCategory);
+    const categoriesList = await categories
+      .find({
+        _id: { $in: productCategory },
+      })
+      .select("name");
+      console.log("category list ",categoriesList)
+    const categoryNames = categoriesList.map((cat) => cat.name);
+    console.log("categoryNames ", categoryNames);
+    const categoryString = categoryNames.join(", ");
     // ✅ Save vendor to PendingVendor with all required fields
+    console.log(" categoryString ", categoryString);
     const pendingVendor = new PendingVendor({
       email,
       password, // This will be hashed by the pre-save middleware
       phone,
       companyName,
-      productCategory,
+      categoryString,
       description,
     });
 

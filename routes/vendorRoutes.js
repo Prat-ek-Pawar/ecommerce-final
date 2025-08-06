@@ -20,7 +20,6 @@ const {
   createVendor ,
   getVendorAnalytics,
 } = require("../controllers/Vendors/vendorsController");
-
 // Import auth middleware
 const { protectSuperAdmin } = require("../middlewares/auth");
 

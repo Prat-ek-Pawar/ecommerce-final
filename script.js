@@ -53,7 +53,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/vendor/profile", vendorProfileRoutes);
-
 // ✅ Health check
 app.get("/", (req, res) => {
   res.send("✅ Server is up and running!");

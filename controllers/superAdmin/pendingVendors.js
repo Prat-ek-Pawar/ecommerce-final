@@ -167,8 +167,108 @@ const denyVendor = asyncHandler(async (req, res, next) => {
     );
   }
 });
+const getAllPendingVendors=asyncHandler(async (req,res,next)=>{
+  const pendingVenodrList = await PendingVendor.find();
+  res.status(200).json({
+    message:"succes",
+    data:pendingVenodrList
+  })
+})
+const clearAllPending=asyncHandler(async(req,res)=>{
+  await PendingVendor.deleteMany();
+   res.status(200).json({
+     message: "Pending list cleared",
+   });
+})
+const approveVendorById = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  console.log("id: ", id);
 
+  try {
+    const pending = await PendingVendor.findById(id);
+    if (!pending) {
+      return res.status(404).json({ message: "Pending vendor not found" });
+    }
+
+    console.log(pending);
+
+    // ✅ Define the missing date variables
+    const approvalDate = new Date();
+    const subscriptionEndDate = new Date(approvalDate);
+    subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1); // 1 month from now
+
+    console.log(`📅 Creating vendor with 1-month subscription:`);
+    console.log(`  ├─ Company: ${pending.companyName}`);
+    console.log(`  ├─ Start Date: ${approvalDate.toDateString()}`);
+    console.log(`  └─ End Date: ${subscriptionEndDate.toDateString()}`);
+
+    // ✅ Create new vendor instance without triggering pre-save middleware
+    const vendor = new Vendor({
+      email: pending.email,
+      phone: pending.phone,
+      companyName: pending.companyName,
+      productCategory: pending.productCategory,
+      description: pending.description,
+      isApproved: true,
+      isLocked: false,
+      approvedAt: approvalDate,
+      subscription: {
+        duration: 1,
+        startDate: approvalDate,
+        endDate: subscriptionEndDate,
+        currentPlan: "basic_1m",
+        totalPurchases: 0,
+      },
+      maxProductLimit: 10,
+    });
+
+    // ✅ Set password directly to bypass validation
+    vendor.password = pending.password; // Already hashed
+
+    // ✅ Save with validation disabled for password field
+    await vendor.save({
+      validateBeforeSave: false, // Skip all validation
+    });
+
+    console.log(`✅ Vendor approved with ID: ${vendor._id}`);
+
+    // Delete the pending vendor after successful creation
+    await PendingVendor.deleteOne({ _id: id });
+
+    console.log(`✅ Vendor approved successfully: ${pending.companyName}`);
+
+    return res.status(200).json({
+      message: "Vendor approved successfully",
+      vendor: {
+        id: vendor._id,
+        companyName: pending.companyName,
+        email: pending.email,
+        subscriptionEndDate: subscriptionEndDate.toDateString(),
+      },
+    });
+  } catch (err) {
+    console.error("❌ Error approving vendor:", err);
+    return res.status(500).json({
+      message: "Can't approve vendor, try again later",
+      error: err.message,
+    });
+  }
+});
+const denyVendorById=asyncHandler(async(req,res)=>{
+  const id=req.params.id;
+  try{
+    await PendingVendor.deleteOne({ _id: id });
+  }
+  catch(err){
+    res.status(500).json({message:"cant deny vendor try again later"})
+  }
+  res.status(200).json({message:"Vendor removed from pending list"})
+})
 module.exports = {
   approveVendor,
   denyVendor,
+  clearAllPending,
+  getAllPendingVendors,
+  denyVendorById,
+  approveVendorById,
 };

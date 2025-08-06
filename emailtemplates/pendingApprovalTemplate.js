@@ -262,7 +262,7 @@ const pendingApprovalTemplate = ({ vendor, approveLink, denyLink }) => {
                     </div>
                     <div class="info-item">
                         <div class="info-label">Product Category</div>
-                        <div class="info-value">${vendor.productCategory}</div>
+                        <div class="info-value">${vendor.categoryString}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Registration Date</div>

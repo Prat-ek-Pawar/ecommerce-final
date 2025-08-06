@@ -2614,3 +2614,395 @@ const createVendor = async (vendorData) => {
 ### 5. Duplicate Email
 - **Issue**: "Vendor already registered with this email"
 - **Solution**: Use a different email address or check existing vendor
+
+--------------------------------------Pending Vendor Approval Denial from dashboard--------------------
+# Admin Routes API Documentation
+
+This documentation covers all admin routes for vendor approval management in the system.
+
+## Base URL
+```
+/api/admin
+```
+
+## Authentication Requirements
+
+Most routes require Super Admin authentication. Include the JWT token in:
+- **Cookie**: `token=your_jwt_token` (Recommended)
+- **Header**: `Authorization: Bearer your_jwt_token`
+
+## Routes Overview
+
+### 1. Email-Based Vendor Approval/Denial
+These routes are triggered from email links and don't require authentication.
+
+### 2. Admin Dashboard Routes
+These routes require Super Admin authentication for manual vendor management.
+
+---
+
+## 📧 Email-Based Routes (No Auth Required)
+
+### Approve Vendor via Email Link
+everything handled on backend
+
+**Description**: Approves a pending vendor application via email verification link.
+
+---
+
+### Deny Vendor via Email Link
+Handled on backed
+
+
+## 🛡️ Protected Admin Routes (Super Admin Auth Required)
+
+### Get All Pending Vendors
+```http
+GET /api/admin/pending-list
+```
+
+**Description**: Retrieves a list of all pending vendor applications.
+
+**Authentication**: Required (Super Admin)
+
+**Response**:
+```json
+{
+  "message": "succes",
+  "data": [
+    {
+      "_id": "6892e7fe5c398bd5f170357c",
+      "email": "vendor@example.com",
+      "companyName": "ABC Company",
+      "phone": "+1234567890",
+      "productCategory": ["category_id"],
+      "description": "Company description",
+      "createdAt": "2025-01-15T10:30:00.000Z",
+      "updatedAt": "2025-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "message": "Access denied. Super Admin access required."
+}
+```
+
+---
+
+### Approve Vendor by ID
+```http
+POST /api/admin/approve-vendor/{id}
+```
+
+**Description**: Manually approves a pending vendor by their ID.
+
+**Authentication**: Required (Super Admin)
+
+**URL Parameters**:
+- `id` (string): The pending vendor ID
+
+**Success Response**:
+```json
+{
+  "message": "Vendor approved successfully",
+  "vendor": {
+    "id": "6892e7fe5c398bd5f170357c",
+    "companyName": "ABC Company",
+    "email": "vendor@example.com",
+    "subscriptionEndDate": "Mon Feb 15 2025"
+  }
+}
+```
+
+**Error Responses**:
+```json
+{
+  "message": "Pending vendor not found"
+}
+```
+```json
+{
+  "message": "Can't approve vendor, try again later",
+  "error": "Detailed error message"
+}
+```
+
+**What this route does**:
+- ✅ Creates a new vendor account with 1-month free subscription
+- ✅ Sets up basic subscription plan (10 product limit)
+- ✅ Transfers all data from pending vendor
+- ✅ Removes vendor from pending list
+- ✅ Account is immediately active and unlocked
+
+---
+
+### Deny Vendor by ID
+```http
+POST /api/admin/deny-vendor/{id}
+```
+
+**Description**: Manually denies a pending vendor by their ID.
+
+**Authentication**: Required (Super Admin)
+
+**URL Parameters**:
+- `id` (string): The pending vendor ID
+
+**Success Response**:
+```json
+{
+  "message": "Vendor removed from pending list"
+}
+```
+
+**Error Response**:
+```json
+{
+  "message": "cant deny vendor try again later"
+}
+```
+
+**What this route does**:
+- ❌ Permanently removes vendor from pending list
+- ❌ No vendor account is created
+- ❌ Vendor cannot reapply with same data
+
+---
+
+### Clear All Pending Vendors
+```http
+POST /api/admin/clear-pending
+```
+
+**Description**: Removes all pending vendor applications from the system.
+
+**Authentication**: Required (Super Admin)
+
+**Success Response**:
+```json
+{
+  "message": "Pending list cleared"
+}
+```
+
+**⚠️ Warning**: This action is irreversible and removes ALL pending applications.
+
+---
+
+## 🔒 Authentication Details
+
+### Super Admin Login
+Before using protected routes, authenticate via:
+```http
+POST /api/auth/admin/login
+```
+
+**Request Body**:
+```json
+{
+  "email": "admin@example.com",
+  "password": "your_password"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Super Admin login successful",
+  "data": {
+    "admin": {
+      "id": "admin_id",
+      "email": "admin@example.com",
+      "username": "admin",
+      "role": "superadmin",
+      "token": "jwt_token_here"
+    }
+  }
+}
+```
+
+### Using Authentication Token
+
+**Option 1: Cookie (Recommended)**
+The token is automatically set as an httpOnly cookie. No additional setup needed for same-origin requests.
+
+**Option 2: Authorization Header**
+```javascript
+fetch('/api/admin/pending-list', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+})
+```
+
+---
+
+## 📝 Frontend Implementation Examples
+
+### React Hook for Pending Vendors
+```javascript
+import { useState, useEffect } from 'react';
+
+const usePendingVendors = () => {
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPendingVendors = async () => {
+    try {
+      const response = await fetch('/api/admin/pending-list');
+      const data = await response.json();
+
+      if (response.ok) {
+        setVendors(data.data);
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError('Failed to fetch pending vendors');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const approveVendor = async (id) => {
+    try {
+      const response = await fetch(`/api/admin/approve-vendor/${id}`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        // Remove from pending list
+        setVendors(prev => prev.filter(v => v._id !== id));
+        return { success: true, message: data.message };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (err) {
+      return { success: false, message: 'Failed to approve vendor' };
+    }
+  };
+
+  const denyVendor = async (id) => {
+    try {
+      const response = await fetch(`/api/admin/deny-vendor/${id}`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        // Remove from pending list
+        setVendors(prev => prev.filter(v => v._id !== id));
+        return { success: true, message: data.message };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (err) {
+      return { success: false, message: 'Failed to deny vendor' };
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingVendors();
+  }, []);
+
+  return { vendors, loading, error, approveVendor, denyVendor, refetch: fetchPendingVendors };
+};
+```
+
+### Admin Dashboard Component
+```javascript
+import React from 'react';
+
+const AdminDashboard = () => {
+  const { vendors, loading, error, approveVendor, denyVendor } = usePendingVendors();
+
+  const handleApprove = async (id, companyName) => {
+    if (confirm(`Approve ${companyName}?`)) {
+      const result = await approveVendor(id);
+      alert(result.message);
+    }
+  };
+
+  const handleDeny = async (id, companyName) => {
+    if (confirm(`Deny ${companyName}? This action cannot be undone.`)) {
+      const result = await denyVendor(id);
+      alert(result.message);
+    }
+  };
+
+  if (loading) return <div>Loading pending vendors...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  return (
+    <div className="admin-dashboard">
+      <h2>Pending Vendor Applications ({vendors.length})</h2>
+
+      {vendors.length === 0 ? (
+        <p>No pending applications</p>
+      ) : (
+        <div className="vendor-list">
+          {vendors.map(vendor => (
+            <div key={vendor._id} className="vendor-card">
+              <h3>{vendor.companyName}</h3>
+              <p>Email: {vendor.email}</p>
+              <p>Phone: {vendor.phone}</p>
+              <p>Applied: {new Date(vendor.createdAt).toLocaleDateString()}</p>
+
+              <div className="actions">
+                <button
+                  className="approve-btn"
+                  onClick={() => handleApprove(vendor._id, vendor.companyName)}
+                >
+                  ✅ Approve
+                </button>
+                <button
+                  className="deny-btn"
+                  onClick={() => handleDeny(vendor._id, vendor.companyName)}
+                >
+                  ❌ Deny
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## ⚠️ Important Notes
+
+1. **Email-based routes** (`/approve` and `/deny`) are designed for email links and return HTML pages
+2. **Admin routes** (`/approve-vendor/:id` and `/deny-vendor/:id`) are for dashboard use and return JSON
+3. **Authentication** is required for all admin dashboard routes
+4. **Vendor approval** creates a 1-month free subscription automatically
+5. **Error handling** should be implemented for all network requests
+6. **Confirmation dialogs** are recommended for destructive actions (deny/clear)
+
+## 🔄 Status Codes
+
+- `200` - Success
+- `401` - Unauthorized (missing/invalid token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not found (vendor doesn't exist)
+- `500` - Server error
+
+## 📧 Email Integration
+
+The system automatically sends email notifications:
+- ✅ **Approval email** when vendor is approved
+- ❌ **Denial email** when vendor is denied
+
+Make sure email templates and SMTP configuration are properly set up in your environment.
