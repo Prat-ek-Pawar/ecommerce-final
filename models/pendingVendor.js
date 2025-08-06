@@ -54,11 +54,11 @@ const pendingVendorSchema = new mongoose.Schema(
       minlength: [2, "Company name must be at least 2 characters long"],
       maxlength: [100, "Company name cannot exceed 100 characters"],
     },
-    productCategory: {
+    productCategory:[ {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
       required: [true, "Product category is required"],
-    },
+    }],
     description: {
       type: String,
       required: [true, "Company description is required"],
