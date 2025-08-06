@@ -87,11 +87,11 @@ const vendorSchema = new mongoose.Schema(
       trim: true,
       maxlength: [1000, "Description cannot exceed 1000 characters"],
     },
-    productCategory: {
+    productCategory:[ {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
       required: [true, "Product category is required"],
-    },
+    }],
     avatar: {
       url: {
         type: String,
