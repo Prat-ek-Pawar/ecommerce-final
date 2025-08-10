@@ -1,10 +1,15 @@
 const Category = require("../../models/categories");
 const asyncHandler = require("../../utils/asyncHandler");
 const ErrorResponse = require("../../utils/errorResponse");
+const {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} = require("../../utils/cloudinary");
+const fs = require("fs");
 
 // 🔐 Create a new category (Super Admin only)
 const createCategory = asyncHandler(async (req, res, next) => {
-  const { name, description, image } = req.body;
+  const { name, description } = req.body;
 
   if (!name) {
     return next(new ErrorResponse("Category name is required", 400));
@@ -19,10 +24,32 @@ const createCategory = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Category already exists", 409));
   }
 
+  // Handle image upload if file is provided
+  let imageData = null;
+  if (req.file) {
+    try {
+      // Upload to Cloudinary
+      const uploadResult = await uploadToCloudinary(
+        req.file.path,
+        "categories"
+      );
+      imageData = {
+        public_id: uploadResult.public_id,
+        url: uploadResult.url,
+      };
+    } catch (error) {
+      // Clean up local file if upload fails
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return next(new ErrorResponse("Failed to upload image", 500));
+    }
+  }
+
   const newCategory = new Category({
     name: name.trim(),
     description: description?.trim(),
-    image,
+    image: imageData,
   });
 
   const saved = await newCategory.save();
@@ -39,7 +66,7 @@ const createCategory = asyncHandler(async (req, res, next) => {
 // 📝 Update an existing category (Super Admin only)
 const updateCategory = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { name, description, image } = req.body;
+  const { name, description } = req.body;
 
   const category = await Category.findById(id);
   if (!category) {
@@ -58,11 +85,36 @@ const updateCategory = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Update fields
+  // Handle image upload if new file is provided
+  if (req.file) {
+    try {
+      // Delete old image from Cloudinary if exists
+      if (category.image && category.image.public_id) {
+        await deleteFromCloudinary(category.image.public_id);
+      }
+
+      // Upload new image
+      const uploadResult = await uploadToCloudinary(
+        req.file.path,
+        "categories"
+      );
+      category.image = {
+        public_id: uploadResult.public_id,
+        url: uploadResult.url,
+      };
+    } catch (error) {
+      // Clean up local file if upload fails
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return next(new ErrorResponse("Failed to upload image", 500));
+    }
+  }
+
+  // Update other fields
   if (name) category.name = name.trim();
   if (description !== undefined)
     category.description = description?.trim() || "";
-  if (image !== undefined) category.image = image;
 
   const updated = await category.save();
 
@@ -82,6 +134,15 @@ const deleteCategory = asyncHandler(async (req, res, next) => {
   const category = await Category.findById(id);
   if (!category) {
     return next(new ErrorResponse("Category not found", 404));
+  }
+
+  // Delete image from Cloudinary if exists
+  if (category.image && category.image.public_id) {
+    try {
+      await deleteFromCloudinary(category.image.public_id);
+    } catch (error) {
+      console.warn("Failed to delete image from Cloudinary:", error.message);
+    }
   }
 
   // TODO: Check if category is being used by any vendors/products

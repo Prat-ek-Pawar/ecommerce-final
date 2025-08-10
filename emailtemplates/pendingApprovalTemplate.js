@@ -1,4 +1,12 @@
 const pendingApprovalTemplate = ({ vendor, approveLink, denyLink }) => {
+  // ✅ Extract category names from populated productCategory
+  const categoryNames =
+    vendor.productCategory && vendor.productCategory.length > 0
+      ? vendor.productCategory.map((cat) => cat.name).join(", ")
+      : "Not specified";
+
+  console.log("Categories for email template:", categoryNames);
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -115,6 +123,20 @@ const pendingApprovalTemplate = ({ vendor, approveLink, denyLink }) => {
             font-size: 14px;
             font-weight: 500;
             word-break: break-word;
+        }
+        .category-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .category-tag {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
         }
         .description-section {
             margin-top: 20px;
@@ -261,8 +283,16 @@ const pendingApprovalTemplate = ({ vendor, approveLink, denyLink }) => {
                         }</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Product Category</div>
-                        <div class="info-value">${vendor.categoryString}</div>
+                        <div class="info-label">Product Categories</div>
+                        <div class="info-value">${categoryNames}</div>
+                        <div class="category-tags">
+                            ${vendor.productCategory
+                              .map(
+                                (cat) =>
+                                  `<span class="category-tag">${cat.name}</span>`
+                              )
+                              .join("")}
+                        </div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Registration Date</div>

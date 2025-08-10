@@ -1,12 +1,11 @@
 const Vendor = require("../../models/vendor");
-const Product = require("../../models/products");
 const asyncHandler = require("../../utils/asyncHandler");
 const ErrorResponse = require("../../utils/errorResponse");
 const {
-  deleteFromCloudinary,
-  deleteMultipleFromCloudinary,
+  uploadToCloudinary,
+  deleteLocalFile,
 } = require("../../utils/cloudinary");
-const mongoose = require("mongoose");
+const fs = require("fs");
 
 // @desc    Get all vendors with filters (Admin)
 // @route   GET /api/vendor/admin/all
@@ -836,7 +835,6 @@ const createVendor = asyncHandler(async (req, res, next) => {
     address,
     description,
     productCategory,
-    avatar,
     subscription,
     maxProductLimit,
     isApproved = true, // Default to approved for admin creation
@@ -852,6 +850,10 @@ const createVendor = asyncHandler(async (req, res, next) => {
     .map(([key]) => key);
 
   if (missingFields.length > 0) {
+    // Clean up uploaded file if validation fails
+    if (req.file && fs.existsSync(req.file.path)) {
+      await deleteLocalFile(req.file.path);
+    }
     return next(
       new ErrorResponse(
         `Missing required fields: ${missingFields.join(", ")}`,
@@ -865,6 +867,10 @@ const createVendor = asyncHandler(async (req, res, next) => {
     subscription?.duration &&
     ![1, 3, 6, 12].includes(Number(subscription.duration))
   ) {
+    // Clean up uploaded file if validation fails
+    if (req.file && fs.existsSync(req.file.path)) {
+      await deleteLocalFile(req.file.path);
+    }
     return next(
       new ErrorResponse(
         "Subscription duration must be 1, 3, 6, or 12 months",
@@ -877,6 +883,10 @@ const createVendor = asyncHandler(async (req, res, next) => {
     // Check if vendor already exists
     const existingVendor = await Vendor.findOne({ email: email.toLowerCase() });
     if (existingVendor) {
+      // Clean up uploaded file if vendor exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        await deleteLocalFile(req.file.path);
+      }
       return next(
         new ErrorResponse("Vendor already registered with this email", 400)
       );
@@ -885,6 +895,10 @@ const createVendor = asyncHandler(async (req, res, next) => {
     // Validate password using schema method
     const passwordErrors = Vendor.validatePassword(password);
     if (passwordErrors.length > 0) {
+      // Clean up uploaded file if password validation fails
+      if (req.file && fs.existsSync(req.file.path)) {
+        await deleteLocalFile(req.file.path);
+      }
       return next(
         new ErrorResponse(
           `Password validation failed: ${passwordErrors.join(", ")}`,
@@ -893,8 +907,77 @@ const createVendor = asyncHandler(async (req, res, next) => {
       );
     }
 
+    // Handle avatar upload if file is provided
+    let avatarData = {};
+    if (req.file) {
+      try {
+        console.log(`📸 Uploading avatar for vendor: ${companyName}`);
+        const uploadResult = await uploadToCloudinary(req.file.path, "avatars");
+        avatarData = {
+          url: uploadResult.url,
+          public_id: uploadResult.public_id,
+        };
+        console.log(
+          `✅ Avatar uploaded successfully: ${uploadResult.public_id}`
+        );
+      } catch (error) {
+        console.error("❌ Avatar upload failed:", error.message);
+        // Clean up local file if upload fails
+        if (fs.existsSync(req.file.path)) {
+          await deleteLocalFile(req.file.path);
+        }
+        return next(new ErrorResponse("Failed to upload avatar image", 500));
+      }
+    }
+
+    // Parse productCategory - handle both string and array formats
+    let categoryArray;
+    if (typeof productCategory === "string") {
+      try {
+        // Try to parse as JSON array first
+        categoryArray = JSON.parse(productCategory);
+      } catch {
+        // If not JSON, treat as single category ID
+        categoryArray = [productCategory.trim()];
+      }
+    } else if (Array.isArray(productCategory)) {
+      categoryArray = productCategory;
+    } else {
+      categoryArray = [productCategory];
+    }
+
+    // Parse address if it's a string
+    let addressData = {};
+    if (address) {
+      if (typeof address === "string") {
+        try {
+          addressData = JSON.parse(address);
+        } catch {
+          // If not valid JSON, ignore
+          addressData = {};
+        }
+      } else {
+        addressData = address;
+      }
+    }
+
+    // Parse subscription if it's a string
+    let subscriptionData = { duration: 1 };
+    if (subscription) {
+      if (typeof subscription === "string") {
+        try {
+          subscriptionData = JSON.parse(subscription);
+        } catch {
+          // If not valid JSON, use default
+          subscriptionData = { duration: 1 };
+        }
+      } else {
+        subscriptionData = subscription;
+      }
+    }
+
     // Calculate subscription dates
-    const subscriptionDuration = subscription?.duration || 1;
+    const subscriptionDuration = subscriptionData?.duration || 1;
     const startDate = new Date();
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + subscriptionDuration);
@@ -913,10 +996,10 @@ const createVendor = asyncHandler(async (req, res, next) => {
       password, // Will be hashed by pre-save middleware
       phone: phone?.trim(),
       companyName: companyName.trim(),
-      address: address || {},
+      address: addressData,
       description: description?.trim(),
-      productCategory,
-      avatar: avatar || {},
+      productCategory: categoryArray,
+      avatar: Object.keys(avatarData).length > 0 ? avatarData : undefined,
       isApproved,
       isLocked: false,
       approvedBy: req.user.id, // Super admin who created it
@@ -936,6 +1019,10 @@ const createVendor = asyncHandler(async (req, res, next) => {
     // Create vendor
     const vendor = await Vendor.create(vendorData);
 
+    // Populate the response with category details
+    await vendor.populate("productCategory", "name description");
+    await vendor.populate("approvedBy", "username email");
+
     // Remove password from response
     const vendorResponse = vendor.toObject();
     delete vendorResponse.password;
@@ -953,6 +1040,11 @@ const createVendor = asyncHandler(async (req, res, next) => {
     });
   } catch (error) {
     console.error("❌ Error creating vendor:", error);
+
+    // Clean up uploaded file if there's an error
+    if (req.file && fs.existsSync(req.file.path)) {
+      await deleteLocalFile(req.file.path);
+    }
 
     // Handle Mongoose validation errors
     if (error.name === "ValidationError") {

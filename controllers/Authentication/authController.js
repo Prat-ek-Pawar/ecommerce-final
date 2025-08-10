@@ -81,7 +81,7 @@ const vendorLogin = asyncHandler(async (req, res, next) => {
     companyName: vendor.companyName,
   };
 
-  const token = generateTokenAndSetCookie(res, payload);
+  const token = await generateTokenAndSetCookie(res, payload);
 
   console.log(`🔐 Vendor logged in: ${vendor.companyName} (${vendor.email})`);
 

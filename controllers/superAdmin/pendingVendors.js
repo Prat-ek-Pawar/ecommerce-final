@@ -168,7 +168,9 @@ const denyVendor = asyncHandler(async (req, res, next) => {
   }
 });
 const getAllPendingVendors=asyncHandler(async (req,res,next)=>{
-  const pendingVenodrList = await PendingVendor.find();
+  const pendingVenodrList = await PendingVendor.find()
+    .populate("productCategory", "name")
+    .select("-password");
   res.status(200).json({
     message:"succes",
     data:pendingVenodrList
@@ -229,7 +231,9 @@ const approveVendorById = asyncHandler(async (req, res) => {
     await vendor.save({
       validateBeforeSave: false, // Skip all validation
     });
+const html = approvalTemplate(vendor.companyName);
 
+await sendEmail(vendor.email, html);
     console.log(`✅ Vendor approved with ID: ${vendor._id}`);
 
     // Delete the pending vendor after successful creation
@@ -257,7 +261,10 @@ const approveVendorById = asyncHandler(async (req, res) => {
 const denyVendorById=asyncHandler(async(req,res)=>{
   const id=req.params.id;
   try{
+    const pendingVendor=PendingVendor.findById(id)
     await PendingVendor.deleteOne({ _id: id });
+    const html = denialTemplate(pendingVendor.companyName);
+    await sendEmail(pendingVendor.email, html);
   }
   catch(err){
     res.status(500).json({message:"cant deny vendor try again later"})

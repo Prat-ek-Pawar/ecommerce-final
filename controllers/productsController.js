@@ -243,6 +243,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     price: price || 0,
     vendor: vendorId,
     isApproved: true,
+    isFeature:false
   });
 
   res.status(201).json({
@@ -561,5 +562,33 @@ exports.deleteImage = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: product.images,
+  });
+});
+exports.featuredProducts = asyncHandler(async (req, res, next) => {
+  const featured = await Product.find({ isFeature: true });
+  res.status(200).json({
+    success: true,
+    count: featured.length,
+    data: featured,
+  });
+});
+exports.toggleFeatured = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const vendorId = req.user.id;
+
+  const product = await Product.findOneAndUpdate(
+    { _id: id, vendor: vendorId },
+    [{ $set: { isFeatured: { $not: "$isFeatured" } } }], // aggregation pipeline update
+    { new: true }
+  );
+
+  if (!product) {
+    return next(new ErrorResponse("Product not found or not authorized", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Product isFeatured set to ${product.isFeatured}`,
+    data: product
   });
 });

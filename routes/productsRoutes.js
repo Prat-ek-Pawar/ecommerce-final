@@ -9,6 +9,8 @@ const {
   searchProducts,
   getSingleProduct,
   createProduct,
+  featuredProducts, // ⬅ new
+  toggleFeatured,
   updateProduct,
   deleteProduct,
   getMyProducts,
@@ -21,7 +23,6 @@ const {
 const {
   protectVendor,
   protectSuperAdmin,
-  optionalAuth,
 } = require("../middlewares/auth");
 
 // Configure multer for file uploads
@@ -112,7 +113,11 @@ router.get("/category/:categoryId", getProductsByCategory);
 // @route   GET /api/products/vendor/:vendorId?skip=0&limit=12
 // @access  Public
 router.get("/vendor/:vendorId", getProductsByVendor);
+// Public: Get featured products
+router.get("/featured", featuredProducts);
 
+// Vendor: Toggle isFeatured
+router.patch("/:id/featured", protectSuperAdmin, toggleFeatured);
 // ===== VENDOR ROUTES (Private) =====
 // @desc    Get vendor's own products with filters
 // @route   GET /api/products/my-products?skip=0&limit=20&status=approved|pending
@@ -159,6 +164,6 @@ router.delete("/admin/:id", protectSuperAdmin, deleteProduct);
 // @desc    Get single product by ID or slug (public)
 // @route   GET /api/products/:id
 // @access  Public
-router.get("/:id", optionalAuth, getSingleProduct);
+router.get("/:id", getSingleProduct);
 
 module.exports = router;

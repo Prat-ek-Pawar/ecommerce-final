@@ -3006,3 +3006,1422 @@ The system automatically sends email notifications:
 - ❌ **Denial email** when vendor is denied
 
 Make sure email templates and SMTP configuration are properly set up in your environment.
+
+## Get featured products
+GET /api/products/featured
+{
+  "success": true,
+  "count": 3,
+  "data": [
+    { "_id": "64f9...", "name": "Product A", "isFeatured": true },
+    { "_id": "64f8...", "name": "Product B", "isFeatured": true }
+  ]
+}
+## toggle featured
+PATCH /api/products/:id/featured
+
+only super admin add http headers
+PATCH /api/products/64f9abc12345/featured
+{
+  "success": true,
+  "message": "Product isFeatured set to true",
+  "data": {
+    "_id": "64f9abc12345",
+    "name": "Product A",
+    "isFeatured": true
+  }
+}
+
+
+--------------------Customers-------------------------------
+# 🛒 Customers API Documentation
+
+## 📍 Base Route
+```javascript
+app.use("/api/customer", customerRoutes)
+```
+
+**Base URL:** `https://your-domain.com/api/customer`
+
+---
+
+## 🌐 PUBLIC ROUTES (No Authentication Required)
+
+### 1. Create Customer Order
+```http
+POST /api/customer
+```
+
+**Access:** Public (Anyone can place orders)
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "vendorId": "68982d7316eb32315a363a86",
+  "productId": "68982d7316eb32315a363a87",
+  "quantity": 2,
+  "email": "customer@example.com",
+  "number": "+1234567890",
+  "name": "John Doe",
+  "address": {
+    "street": "123 Main Street",
+    "city": "New York",
+    "state": "NY",
+    "zipCode": "10001",
+    "country": "USA"
+  }
+}
+```
+
+**Field Validations:**
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `vendorId` | String | Yes | Valid MongoDB ObjectId |
+| `productId` | String | Yes | Valid MongoDB ObjectId |
+| `quantity` | Number | Yes | Positive integer ≥ 1 |
+| `email` | String | Yes | Valid email format |
+| `number` | String | Yes | Valid phone number |
+| `name` | String | Yes | 2-100 characters |
+| `address.street` | String | Yes | Required |
+| `address.city` | String | Yes | Required |
+| `address.state` | String | Yes | Required |
+| `address.zipCode` | String | Yes | Required |
+| `address.country` | String | No | Defaults to "India" |
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "Order placed successfully",
+  "data": {
+    "customer": {
+      "_id": "659f1234567890abcdef1234",
+      "vendorId": {
+        "_id": "68982d7316eb32315a363a86",
+        "companyName": "Tech Solutions Inc",
+        "email": "vendor@example.com",
+        "phone": "+1234567890"
+      },
+      "productId": {
+        "_id": "68982d7316eb32315a363a87",
+        "title": "Gaming Laptop Pro",
+        "price": 1299.99,
+        "images": [
+          {
+            "url": "/uploads/products/laptop.jpg",
+            "public_id": "laptop_123"
+          }
+        ]
+      },
+      "quantity": 2,
+      "email": "customer@example.com",
+      "number": "+1234567890",
+      "name": "John Doe",
+      "address": {
+        "street": "123 Main Street",
+        "city": "New York",
+        "state": "NY",
+        "zipCode": "10001",
+        "country": "USA"
+      },
+      "deliveredFlag": false,
+      "orderDate": "2024-01-15T10:30:00.000Z",
+      "orderTime": "10:30:00",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    },
+    "orderDetails": {
+      "orderId": "659f1234567890abcdef1234",
+      "customerName": "John Doe",
+      "productName": "Gaming Laptop Pro",
+      "vendorName": "Tech Solutions Inc",
+      "quantity": 2,
+      "orderDate": "2024-01-15T10:30:00.000Z",
+      "orderTime": "10:30:00",
+      "status": "Pending",
+      "fullAddress": "123 Main Street, New York, NY 10001, USA"
+    }
+  }
+}
+```
+
+**Error Responses:**
+```json
+// Missing fields
+{
+  "success": false,
+  "error": "Missing required fields: vendorId, productId"
+}
+
+// Invalid vendor/product
+{
+  "success": false,
+  "error": "Vendor not found"
+}
+
+// Validation error
+{
+  "success": false,
+  "error": "Quantity must be a positive whole number"
+}
+```
+
+### 2. Get Order by ID
+```http
+GET /api/customer/:id
+```
+
+**Access:** Public
+
+**Parameters:**
+- `id` (String): Order ID (MongoDB ObjectId)
+
+**Example:**
+```
+GET /api/customer/659f1234567890abcdef1234
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "customer": {
+      "_id": "659f1234567890abcdef1234",
+      "vendorId": {
+        "_id": "68982d7316eb32315a363a86",
+        "companyName": "Tech Solutions Inc",
+        "email": "vendor@example.com",
+        "phone": "+1234567890",
+        "address": {
+          "street": "456 Business Ave",
+          "city": "San Francisco",
+          "state": "CA",
+          "zipCode": "94105",
+          "country": "USA"
+        }
+      },
+      "productId": {
+        "_id": "68982d7316eb32315a363a87",
+        "title": "Gaming Laptop Pro",
+        "price": 1299.99,
+        "images": [...],
+        "description": "High-performance gaming laptop"
+      },
+      "quantity": 2,
+      "email": "customer@example.com",
+      "number": "+1234567890",
+      "name": "John Doe",
+      "address": {
+        "street": "123 Main Street",
+        "city": "New York",
+        "state": "NY",
+        "zipCode": "10001",
+        "country": "USA"
+      },
+      "deliveredFlag": false,
+      "orderDate": "2024-01-15T10:30:00.000Z",
+      "orderTime": "10:30:00"
+    },
+    "orderDetails": {
+      "orderId": "659f1234567890abcdef1234",
+      "customerName": "John Doe",
+      "productName": "Gaming Laptop Pro",
+      "vendorName": "Tech Solutions Inc",
+      "quantity": 2,
+      "orderDate": "2024-01-15T10:30:00.000Z",
+      "orderTime": "10:30:00",
+      "status": "Pending",
+      "fullAddress": "123 Main Street, New York, NY 10001, USA"
+    }
+  }
+}
+```
+
+### 3. Check Order Status
+```http
+GET /api/customer/status/:id/:email
+```
+
+**Access:** Public (Customer order tracking)
+
+**Parameters:**
+- `id` (String): Order ID
+- `email` (String): Customer email (for verification)
+
+**Example:**
+```
+GET /api/customer/status/659f1234567890abcdef1234/customer@example.com
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "659f1234567890abcdef1234",
+    "status": "Pending",
+    "orderDate": "2024-01-15T10:30:00.000Z",
+    "orderTime": "10:30:00",
+    "customerName": "John Doe",
+    "product": {
+      "_id": "68982d7316eb32315a363a87",
+      "title": "Gaming Laptop Pro",
+      "price": 1299.99,
+      "images": [...]
+    },
+    "vendor": {
+      "_id": "68982d7316eb32315a363a86",
+      "companyName": "Tech Solutions Inc",
+      "phone": "+1234567890"
+    },
+    "quantity": 2,
+    "deliveryAddress": "123 Main Street, New York, NY 10001, USA"
+  }
+}
+```
+
+---
+
+## 🔒 PROTECTED ROUTES (Authentication Required)
+
+### Authentication Methods
+
+**Option 1: Cookie Authentication (Recommended)**
+```javascript
+// Automatic - token stored in httpOnly cookie after login
+fetch('/api/customer/admin/all', {
+  credentials: 'include'
+})
+```
+
+**Option 2: Bearer Token**
+```javascript
+fetch('/api/customer/admin/all', {
+  headers: {
+    'Authorization': 'Bearer your_jwt_token_here',
+    'Content-Type': 'application/json'
+  }
+})
+```
+
+### 1. Get All Customers
+```http
+GET /api/customer/admin/all
+```
+
+**Access:** Private (Admin: all customers, Vendor: own customers only)
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | Number | 1 | Page number for pagination |
+| `limit` | Number | 20 | Items per page (max 100) |
+| `vendorId` | String | - | Filter by vendor ID (admin only) |
+| `productId` | String | - | Filter by product ID |
+| `deliveredFlag` | Boolean | - | Filter by delivery status |
+| `search` | String | - | Search in name, email, number, city, state |
+| `sortBy` | String | orderDate | Sort field |
+| `sortOrder` | String | desc | Sort order (asc/desc) |
+| `startDate` | String | - | Filter from date (YYYY-MM-DD) |
+| `endDate` | String | - | Filter to date (YYYY-MM-DD) |
+
+**Example:**
+```
+GET /api/customer/admin/all?page=1&limit=10&deliveredFlag=false&search=john&sortBy=orderDate&sortOrder=desc&startDate=2024-01-01&endDate=2024-01-31
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "659f1234567890abcdef1234",
+      "name": "John Doe",
+      "email": "customer@example.com",
+      "number": "+1234567890",
+      "quantity": 2,
+      "deliveredFlag": false,
+      "orderDate": "2024-01-15T10:30:00.000Z",
+      "orderTime": "10:30:00",
+      "productId": {
+        "_id": "68982d7316eb32315a363a87",
+        "title": "Gaming Laptop Pro",
+        "price": 1299.99,
+        "images": [...]
+      },
+      "vendorId": {
+        "_id": "68982d7316eb32315a363a86",
+        "companyName": "Tech Solutions Inc",
+        "email": "vendor@example.com",
+        "phone": "+1234567890"
+      },
+      "address": {
+        "street": "123 Main Street",
+        "city": "New York",
+        "state": "NY",
+        "zipCode": "10001",
+        "country": "USA"
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "current": 1,
+    "pages": 5,
+    "total": 95,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "summary": {
+    "totalOrders": 95,
+    "deliveredOrders": 67,
+    "pendingOrders": 28,
+    "totalQuantity": 150
+  }
+}
+```
+
+### 2. Update Customer Order
+```http
+PUT /api/customer/admin/:id
+```
+
+**Access:** Private (Admin: any order, Vendor: own customers only)
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+Content-Type: application/json
+```
+
+**Parameters:**
+- `id` (String): Customer order ID
+
+**Request Body:**
+```json
+{
+  "quantity": 3,
+  "email": "newemail@example.com",
+  "number": "+1987654321",
+  "name": "John Smith",
+  "address": {
+    "street": "456 New Street",
+    "city": "Boston",
+    "state": "MA",
+    "zipCode": "02101",
+    "country": "USA"
+  },
+  "deliveredFlag": true
+}
+```
+
+**Allowed Update Fields:**
+- `quantity` (Number): New quantity
+- `email` (String): Customer email
+- `number` (String): Customer phone
+- `name` (String): Customer name
+- `address` (Object): Complete or partial address
+- `deliveredFlag` (Boolean): Delivery status
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Order updated successfully",
+  "data": {
+    "_id": "659f1234567890abcdef1234",
+    "name": "John Smith",
+    "email": "newemail@example.com",
+    "number": "+1987654321",
+    "quantity": 3,
+    "deliveredFlag": true,
+    "address": {
+      "street": "456 New Street",
+      "city": "Boston",
+      "state": "MA",
+      "zipCode": "02101",
+      "country": "USA"
+    },
+    "productId": {
+      "_id": "68982d7316eb32315a363a87",
+      "title": "Gaming Laptop Pro",
+      "price": 1299.99
+    },
+    "vendorId": {
+      "_id": "68982d7316eb32315a363a86",
+      "companyName": "Tech Solutions Inc"
+    },
+    "updatedAt": "2024-01-16T10:30:00.000Z"
+  }
+}
+```
+
+### 3. Delete Customer Order
+```http
+DELETE /api/customer/admin/:id
+```
+
+**Access:** Private (Admin: any order, Vendor: own customers only)
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+```
+
+**Parameters:**
+- `id` (String): Customer order ID
+
+**Example:**
+```
+DELETE /api/customer/admin/659f1234567890abcdef1234
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Order deleted successfully",
+  "data": {
+    "deletedOrder": {
+      "id": "659f1234567890abcdef1234",
+      "customerName": "John Doe",
+      "email": "customer@example.com",
+      "orderDate": "2024-01-15T10:30:00.000Z"
+    }
+  }
+}
+```
+
+### 4. Mark Order as Delivered
+```http
+PATCH /api/customer/admin/:id/deliver
+```
+
+**Access:** Private (Admin: any order, Vendor: own customers only)
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+```
+
+**Parameters:**
+- `id` (String): Customer order ID
+
+**Example:**
+```
+PATCH /api/customer/admin/659f1234567890abcdef1234/deliver
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Order marked as delivered successfully",
+  "data": {
+    "orderId": "659f1234567890abcdef1234",
+    "customerName": "John Doe",
+    "deliveredFlag": true,
+    "updatedAt": "2024-01-16T10:30:00.000Z"
+  }
+}
+```
+
+### 5. Bulk Mark as Delivered
+```http
+PATCH /api/customer/admin/bulk-deliver
+```
+
+**Access:** Private (Admin: any orders, Vendor: own customers only)
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "customerIds": [
+    "659f1234567890abcdef1234",
+    "659f1234567890abcdef1235",
+    "659f1234567890abcdef1236"
+  ]
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "3 orders marked as delivered successfully",
+  "data": {
+    "matched": 3,
+    "modified": 3
+  }
+}
+```
+
+### 6. Get Customer Analytics
+```http
+GET /api/customer/admin/analytics
+```
+
+**Access:** Private (Admin: all data, Vendor: own data only)
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `days` | Number | 30 | Analytics period in days |
+| `vendorId` | String | - | Filter by vendor (admin only) |
+
+**Example:**
+```
+GET /api/customer/admin/analytics?days=7&vendorId=68982d7316eb32315a363a86
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "overview": {
+      "totalOrders": 150,
+      "deliveredOrders": 120,
+      "pendingOrders": 30,
+      "totalQuantity": 300,
+      "uniqueCustomers": 85,
+      "deliveryRate": 80.0
+    },
+    "dailyOrders": [
+      {
+        "_id": {
+          "year": 2024,
+          "month": 1,
+          "day": 15
+        },
+        "orders": 12,
+        "delivered": 8
+      },
+      {
+        "_id": {
+          "year": 2024,
+          "month": 1,
+          "day": 16
+        },
+        "orders": 8,
+        "delivered": 5
+      }
+    ],
+    "topProducts": [
+      {
+        "_id": "68982d7316eb32315a363a87",
+        "productName": "Gaming Laptop Pro",
+        "orderCount": 25,
+        "totalQuantity": 30
+      },
+      {
+        "_id": "68982d7316eb32315a363a88",
+        "productName": "Wireless Headphones",
+        "orderCount": 18,
+        "totalQuantity": 22
+      }
+    ],
+    "topCities": [
+      {
+        "_id": "New York",
+        "orderCount": 45
+      },
+      {
+        "_id": "Los Angeles",
+        "orderCount": 32
+      }
+    ],
+    "period": "Last 7 days"
+  }
+}
+```
+
+---
+
+## 🛍️ VENDOR-SPECIFIC ROUTES
+
+### 1. Get Vendor's Customers Only
+```http
+GET /api/customer/vendor/my-customers
+```
+
+**Access:** Private (Vendor Only)
+
+**Headers:**
+```
+Authorization: Bearer vendor_jwt_token
+```
+
+**Query Parameters:** Same as `/admin/all` but automatically filtered to vendor's customers
+
+**Example:**
+```
+GET /api/customer/vendor/my-customers?page=1&limit=10&deliveredFlag=false
+```
+
+### 2. Get Vendor's Analytics
+```http
+GET /api/customer/vendor/my-analytics
+```
+
+**Access:** Private (Vendor Only)
+
+**Headers:**
+```
+Authorization: Bearer vendor_jwt_token
+```
+
+**Query Parameters:**
+- `days` (Number): Analytics period (default: 30)
+
+**Example:**
+```
+GET /api/customer/vendor/my-analytics?days=14
+```
+
+---
+
+## 🧪 Testing Examples
+
+### Frontend JavaScript Examples
+
+#### 1. Create Order (Public)
+```javascript
+const createOrder = async (orderData) => {
+  try {
+    const response = await fetch('/api/customer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        vendorId: "68982d7316eb32315a363a86",
+        productId: "68982d7316eb32315a363a87",
+        quantity: 2,
+        email: "customer@example.com",
+        number: "+1234567890",
+        name: "John Doe",
+        address: {
+          street: "123 Main Street",
+          city: "New York",
+          state: "NY",
+          zipCode: "10001"
+        }
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('Order created:', result.data.orderDetails);
+      return result.data;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('Order creation failed:', error);
+    throw error;
+  }
+};
+```
+
+#### 2. Check Order Status (Public)
+```javascript
+const checkOrderStatus = async (orderId, email) => {
+  try {
+    const response = await fetch(`/api/customer/status/${orderId}/${email}`);
+    const result = await response.json();
+
+    if (result.success) {
+      return result.data;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('Status check failed:', error);
+    throw error;
+  }
+};
+```
+
+#### 3. Get Vendor's Customers (Protected)
+```javascript
+const getMyCustomers = async (filters = {}) => {
+  try {
+    const queryParams = new URLSearchParams(filters);
+    const response = await fetch(`/api/customer/vendor/my-customers?${queryParams}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      return result.data;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('Failed to fetch customers:', error);
+    throw error;
+  }
+};
+```
+
+#### 4. Mark Order as Delivered (Protected)
+```javascript
+const markAsDelivered = async (orderId) => {
+  try {
+    const response = await fetch(`/api/customer/admin/${orderId}/deliver`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('Order marked as delivered:', result.data);
+      return result.data;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('Failed to mark as delivered:', error);
+    throw error;
+  }
+};
+```
+
+### React Hook Example
+```javascript
+import { useState, useEffect } from 'react';
+
+const useCustomers = (userRole) => {
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+
+  const fetchCustomers = async (filters = {}) => {
+    setLoading(true);
+    try {
+      const endpoint = userRole === 'vendor'
+        ? '/api/customer/vendor/my-customers'
+        : '/api/customer/admin/all';
+
+      const queryParams = new URLSearchParams(filters);
+      const response = await fetch(`${endpoint}?${queryParams}`, {
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setCustomers(result.data);
+        return result;
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markDelivered = async (orderId) => {
+    try {
+      const response = await fetch(`/api/customer/admin/${orderId}/deliver`, {
+        method: 'PATCH',
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setCustomers(prev =>
+          prev.map(customer =>
+            customer._id === orderId
+              ? { ...customer, deliveredFlag: true }
+              : customer
+          )
+        );
+        return result;
+      }
+    } catch (error) {
+      console.error('Error marking as delivered:', error);
+    }
+  };
+
+  const fetchAnalytics = async (days = 30) => {
+    try {
+      const endpoint = userRole === 'vendor'
+        ? '/api/customer/vendor/my-analytics'
+        : '/api/customer/admin/analytics';
+
+      const response = await fetch(`${endpoint}?days=${days}`, {
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setAnalytics(result.data);
+        return result.data;
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    }
+  };
+
+  return {
+    customers,
+    analytics,
+    loading,
+    fetchCustomers,
+    markDelivered,
+    fetchAnalytics
+  };
+};
+
+export default useCustomers;
+```
+
+---
+
+## ⚠️ Error Handling
+
+### Common HTTP Status Codes:
+- **200**: Success
+- **201**: Created (new order)
+- **400**: Bad Request (validation error)
+- **401**: Unauthorized (no token)
+- **403**: Forbidden (insufficient permissions)
+- **404**: Not Found (order/vendor/product not found)
+- **429**: Too Many Requests (rate limited)
+- **500**: Server Error
+
+### Error Response Format:
+```json
+{
+  "success": false,
+  "error": "Detailed error message"
+}
+```
+
+---
+
+## 🔐 Access Control Summary
+
+| Endpoint | Public | Vendor | Admin | Notes |
+|----------|--------|--------|-------|-------|
+| `POST /api/customer` | ✅ | ✅ | ✅ | Anyone can place orders |
+| `GET /api/customer/:id` | ✅ | ✅ | ✅ | Anyone can view orders |
+| `GET /api/customer/status/:id/:email` | ✅ | ✅ | ✅ | Order tracking |
+| `GET /api/customer/admin/all` | ❌ | ✅* | ✅ | *Own customers only |
+| `PUT /api/customer/admin/:id` | ❌ | ✅* | ✅ | *Own customers only |
+| `DELETE /api/customer/admin/:id` | ❌ | ✅* | ✅ | *Own customers only |
+| `PATCH /api/customer/admin/:id/deliver` | ❌ | ✅* | ✅ | *Own customers only |
+| `GET /api/customer/admin/analytics` | ❌ | ✅* | ✅ | *Own data only |
+| `PATCH /api/customer/admin/bulk-deliver` | ❌ | ✅* | ✅ | *Own customers only |
+| `GET /api/customer/vendor/my-customers` | ❌ | ✅ | ❌ | Vendor only |
+| `GET /api/customer/vendor/my-analytics` | ❌ | ✅ | ❌ | Vendor only |
+
+------------------------------Banners---------------------------
+# 🎯 Banner API Documentation
+
+## 📋 **Complete Route List**
+
+| Method | Route | Access | Description |
+|--------|-------|--------|-------------|
+| GET | `/api/banners` | Public | Get all visible banners |
+| GET | `/api/banners/admin/stats` | Admin Only | Get banner statistics |
+| GET | `/api/banners/admin/all` | Admin Only | Get all banners (with filters) |
+| POST | `/api/banners/admin` | Admin Only | Create new banner |
+| GET | `/api/banners/admin/:id` | Admin Only | Get single banner |
+| PUT | `/api/banners/admin/:id` | Admin Only | Update banner |
+| DELETE | `/api/banners/admin/:id` | Admin Only | Delete banner |
+| PATCH | `/api/banners/admin/:id/toggle` | Admin Only | Toggle banner visibility |
+
+---
+
+## 🌐 **PUBLIC ROUTES**
+
+### 1. Get All Visible Banners
+```
+GET /api/banners
+```
+**Access:** Public (No authentication required)
+**Description:** Returns all visible, non-expired banners for frontend display
+
+**Request:**
+- No body required
+- No headers required
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": {
+    "banners": [
+      {
+        "_id": "66b7a1234567890abcdef123",
+        "title": "Summer Sale Banner",
+        "imageUrl": "https://res.cloudinary.com/image.jpg",
+        "vendorId": {
+          "_id": "66b7a1234567890abcdef456",
+          "companyName": "Tech Store"
+        },
+        "createdAt": "2025-08-10T10:30:00.000Z",
+        "expiryDate": "2025-08-25T10:30:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 🔐 **ADMIN ONLY ROUTES**
+*Requires: Admin login with cookie-based authentication*
+
+### 2. Get Banner Statistics
+```
+GET /api/banners/admin/stats
+```
+
+**Request:**
+- **Headers:** Cookie with admin token (automatic after login)
+- **Body:** None
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "stats": {
+      "totalBanners": 25,
+      "visibleBanners": 18,
+      "expiredBanners": 7,
+      "soonToExpire": 3
+    }
+  }
+}
+```
+
+### 3. Get All Banners (Admin View)
+```
+GET /api/banners/admin/all
+```
+
+**Request:**
+- **Headers:** Cookie with admin token
+- **Query Parameters (all optional):**
+  - `page`: Page number (default: 1)
+  - `limit`: Items per page (default: 10)
+  - `isVisible`: Filter by visibility (true/false)
+  - `vendorId`: Filter by vendor ID
+
+**Examples:**
+```
+GET /api/banners/admin/all
+GET /api/banners/admin/all?page=2&limit=5
+GET /api/banners/admin/all?isVisible=true
+GET /api/banners/admin/all?vendorId=66b7a1234567890abcdef456
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 5,
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 3,
+    "totalBanners": 15
+  },
+  "data": {
+    "banners": [
+      {
+        "_id": "66b7a1234567890abcdef123",
+        "title": "Summer Sale Banner",
+        "imageUrl": "https://res.cloudinary.com/image.jpg",
+        "publicId": "marketplace/banners/banner_123",
+        "vendorId": {
+          "_id": "66b7a1234567890abcdef456",
+          "companyName": "Tech Store",
+          "email": "tech@store.com",
+          "phone": "+1234567890"
+        },
+        "visibilityDays": 15,
+        "expiryDate": "2025-08-25T10:30:00.000Z",
+        "isVisible": true,
+        "createdBy": {
+          "_id": "66b7a1234567890abcdef789",
+          "username": "admin",
+          "email": "admin@marketplace.com"
+        },
+        "createdAt": "2025-08-10T10:30:00.000Z",
+        "updatedAt": "2025-08-10T10:30:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+### 4. Create New Banner
+```
+POST /api/banners/admin
+```
+
+**Request:**
+- **Headers:** Cookie with admin token
+- **Content-Type:** `multipart/form-data`
+- **Form Data (all required):**
+  - `title`: Banner title (string, max 100 characters)
+  - `vendorId`: MongoDB ObjectId of vendor (string)
+  - `visibilityDays`: Number of days (number, must be: 7, 10, 12, 15, 17, or 30)
+  - `image`: Image file (file, max 5MB, images only)
+
+**Example using curl:**
+```bash
+curl -X POST http://localhost:5000/api/banners/admin \
+  -H "Cookie: token=your_admin_token" \
+  -F "title=Summer Sale Banner" \
+  -F "vendorId=66b7a1234567890abcdef456" \
+  -F "visibilityDays=15" \
+  -F "image=@/path/to/banner.jpg"
+```
+
+**Example using Postman:**
+- Method: POST
+- URL: `http://localhost:5000/api/banners/admin`
+- Headers: (Cookie will be set automatically after admin login)
+- Body: form-data
+  - title: "Summer Sale Banner"
+  - vendorId: "66b7a1234567890abcdef456"
+  - visibilityDays: 15
+  - image: [Select file]
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Banner created successfully",
+  "data": {
+    "banner": {
+      "_id": "66b7a1234567890abcdef123",
+      "title": "Summer Sale Banner",
+      "vendorId": {
+        "_id": "66b7a1234567890abcdef456",
+        "companyName": "Tech Store",
+        "email": "tech@store.com"
+      },
+      "imageUrl": "https://res.cloudinary.com/image.jpg",
+      "publicId": "marketplace/banners/banner_123",
+      "visibilityDays": 15,
+      "expiryDate": "2025-08-25T10:30:00.000Z",
+      "isVisible": true,
+      "createdAt": "2025-08-10T10:30:00.000Z"
+    }
+  }
+}
+```
+
+### 5. Get Single Banner
+```
+GET /api/banners/admin/:id
+```
+
+**Request:**
+- **Headers:** Cookie with admin token
+- **URL Parameter:**
+  - `id`: Banner MongoDB ObjectId
+
+**Example:**
+```
+GET /api/banners/admin/66b7a1234567890abcdef123
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "banner": {
+      "_id": "66b7a1234567890abcdef123",
+      "title": "Summer Sale Banner",
+      "vendorId": {
+        "_id": "66b7a1234567890abcdef456",
+        "companyName": "Tech Store",
+        "email": "tech@store.com",
+        "phone": "+1234567890"
+      },
+      "imageUrl": "https://res.cloudinary.com/image.jpg",
+      "publicId": "marketplace/banners/banner_123",
+      "visibilityDays": 15,
+      "expiryDate": "2025-08-25T10:30:00.000Z",
+      "isVisible": true,
+      "createdBy": {
+        "_id": "66b7a1234567890abcdef789",
+        "username": "admin",
+        "email": "admin@marketplace.com"
+      },
+      "createdAt": "2025-08-10T10:30:00.000Z",
+      "updatedAt": "2025-08-10T10:30:00.000Z"
+    }
+  }
+}
+```
+
+### 6. Update Banner
+```
+PUT /api/banners/admin/:id
+```
+
+**Request:**
+- **Headers:** Cookie with admin token
+- **URL Parameter:**
+  - `id`: Banner MongoDB ObjectId
+- **Content-Type:** `multipart/form-data`
+- **Form Data (all optional):**
+  - `title`: New banner title (string, max 100 characters)
+  - `vendorId`: New vendor ID (string, MongoDB ObjectId)
+  - `visibilityDays`: New visibility duration (number: 7, 10, 12, 15, 17, or 30)
+  - `isVisible`: Manual visibility toggle (boolean: true/false)
+  - `image`: New image file (file, max 5MB, will replace existing)
+
+**Example using curl:**
+```bash
+curl -X PUT http://localhost:5000/api/banners/admin/66b7a1234567890abcdef123 \
+  -H "Cookie: token=your_admin_token" \
+  -F "title=Updated Banner Title" \
+  -F "visibilityDays=30"
+```
+
+**Example using Postman:**
+- Method: PUT
+- URL: `http://localhost:5000/api/banners/admin/66b7a1234567890abcdef123`
+- Headers: (Cookie will be set automatically after admin login)
+- Body: form-data
+  - title: "Updated Banner Title"
+  - visibilityDays: 30
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Banner updated successfully",
+  "data": {
+    "banner": {
+      "_id": "66b7a1234567890abcdef123",
+      "title": "Updated Banner Title",
+      "visibilityDays": 30,
+      "expiryDate": "2025-09-09T10:30:00.000Z"
+    }
+  }
+}
+```
+
+### 7. Toggle Banner Visibility
+```
+PATCH /api/banners/admin/:id/toggle
+```
+
+**Request:**
+- **Headers:** Cookie with admin token
+- **URL Parameter:**
+  - `id`: Banner MongoDB ObjectId
+- **Body:** None
+
+**Example using curl:**
+```bash
+curl -X PATCH http://localhost:5000/api/banners/admin/66b7a1234567890abcdef123/toggle \
+  -H "Cookie: token=your_admin_token"
+```
+
+**Example using Postman:**
+- Method: PATCH
+- URL: `http://localhost:5000/api/banners/admin/66b7a1234567890abcdef123/toggle`
+- Headers: (Cookie will be set automatically after admin login)
+- Body: None
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Banner enabled successfully",
+  "data": {
+    "banner": {
+      "id": "66b7a1234567890abcdef123",
+      "title": "Summer Sale Banner",
+      "isVisible": true
+    }
+  }
+}
+```
+
+### 8. Delete Banner
+```
+DELETE /api/banners/admin/:id
+```
+
+**Request:**
+- **Headers:** Cookie with admin token
+- **URL Parameter:**
+  - `id`: Banner MongoDB ObjectId
+
+**Example using curl:**
+```bash
+curl -X DELETE http://localhost:5000/api/banners/admin/66b7a1234567890abcdef123 \
+  -H "Cookie: token=your_admin_token"
+```
+
+**Example using Postman:**
+- Method: DELETE
+- URL: `http://localhost:5000/api/banners/admin/66b7a1234567890abcdef123`
+- Headers: (Cookie will be set automatically after admin login)
+- Body: None
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Banner deleted successfully"
+}
+```
+
+---
+
+## 🔥 **Error Responses**
+
+### Authentication Error:
+```json
+{
+  "success": false,
+  "message": "Access denied. No token provided."
+}
+```
+
+### Authorization Error:
+```json
+{
+  "success": false,
+  "message": "Access denied. Super Admin access required."
+}
+```
+
+### Validation Error:
+```json
+{
+  "success": false,
+  "message": "Title, vendor ID and visibility days are required"
+}
+```
+
+### Not Found Error:
+```json
+{
+  "success": false,
+  "message": "Banner not found"
+}
+```
+
+### File Upload Error:
+```json
+{
+  "success": false,
+  "message": "Banner image is required"
+}
+```
+
+### Vendor Not Found:
+```json
+{
+  "success": false,
+  "message": "Vendor not found"
+}
+```
+
+---
+
+## 📝 **Important Notes**
+
+1. **Authentication:** All admin routes require login. After admin login at `/api/auth/admin/login`, the token is stored in cookies automatically.
+
+2. **File Upload:** Use `multipart/form-data` for routes with image upload (CREATE and UPDATE). Maximum file size is 5MB. Only image files are allowed.
+
+3. **Visibility Days:** Only these values are allowed: 7, 10, 12, 15, 17, 30. Any other value will cause a validation error.
+
+4. **Auto-Expiry:** Banners automatically become invisible after their expiry date. The system runs an hourly check to update expired banners.
+
+5. **Image Management:** Images are uploaded to Cloudinary. When banners are deleted or images are replaced, old images are automatically deleted from Cloudinary.
+
+6. **Vendor Validation:** The system checks if the provided vendorId exists before creating/updating banners.
+
+7. **ObjectId Format:** All IDs must be valid MongoDB ObjectIds (24 character hex string).
+
+## 🧪 **Testing Order**
+
+1. **Login as admin first:**
+   ```bash
+   curl -X POST http://localhost:5000/api/auth/admin/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@example.com","password":"password"}' \
+     -c cookies.txt
+   ```
+
+2. **Test public route:**
+   ```bash
+   curl http://localhost:5000/api/banners
+   ```
+
+3. **Test admin routes (use cookies from login):**
+   ```bash
+   # Get stats
+   curl -b cookies.txt http://localhost:5000/api/banners/admin/stats
+
+   # Get all banners
+   curl -b cookies.txt http://localhost:5000/api/banners/admin/all
+
+   # Create banner
+   curl -X POST -b cookies.txt http://localhost:5000/api/banners/admin \
+     -F "title=Test Banner" \
+     -F "vendorId=YOUR_VENDOR_ID" \
+     -F "visibilityDays=15" \
+     -F "image=@path/to/image.jpg"
+   ```
+
+## 🎯 **Quick Reference**
+
+- **Base URL:** `http://localhost:5000/api/banners`
+- **Admin Login:** `POST /api/auth/admin/login`
+- **Public Route:** `GET /api/banners`
+- **Admin Routes:** All under `/api/banners/admin/*`
+- **Authentication:** Cookie-based (automatic after login)
+- **File Upload:** `multipart/form-data` for CREATE/UPDATE with images

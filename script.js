@@ -14,14 +14,18 @@ const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productsRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const vendorProfileRoutes = require("./routes/vendorProfileRoutes");
+const customerRoutes=require("./routes/customersRoutes")
 
 const app = express();
 const cookieParser = require("cookie-parser");
-app.use(cookieParser());
+
+// 🔗 MongoDB connection
+connectDB();
+const { scheduleBannerExpiry } = require("./utils/bannerScheduler");
+scheduleBannerExpiry();
 // Create upload directories if they don't exist
 const createUploadDirs = () => {
-  const dirs = ["uploads/products", "uploads/avatars"];
-
+  const dirs = ["uploads/products", "uploads/avatars", "uploads/banners"]; // Added banners
   dirs.forEach((dir) => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -30,17 +34,43 @@ const createUploadDirs = () => {
   });
 };
 
-// 🔗 MongoDB connection
-connectDB();
-
-// Create directories
 createUploadDirs();
 
-// 🧩 Middleware
-app.use(cors()); // Allow all origins
+// 🧩 Middleware - ORDER IS IMPORTANT!
+app.use(cookieParser());
+
+// CORS configuration - ONLY ONE CORS MIDDLEWARE
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost origins
+      if (
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin.includes("file://")
+      ) {
+        return callback(null, true);
+      }
+
+      // For development, allow all origins
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    exposedHeaders: ["Set-Cookie"],
+  })
+);
+
+// Remove this line - it's causing the duplicate CORS issue:
+// app.use(cors()); // <-- DELETE THIS LINE
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan("dev")); // Log all requests
+app.use(morgan("dev"));
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static("uploads"));
@@ -53,6 +83,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/vendor/profile", vendorProfileRoutes);
+app.use("/api/customer",customerRoutes)
+app.use("/api/banners", require("./routes/bannerRoutes"));
 // ✅ Health check
 app.get("/", (req, res) => {
   res.send("✅ Server is up and running!");

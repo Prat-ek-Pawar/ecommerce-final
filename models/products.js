@@ -58,6 +58,10 @@ const productSchema = new mongoose.Schema(
     rejectionReason: {
       type: String,
     },
+    isFeature:{
+      type:Boolean,
+      default:false
+    },
     views: {
       type: Number,
       default: 0,

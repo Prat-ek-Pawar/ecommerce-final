@@ -143,7 +143,7 @@ const signupVendor = asyncHandler(async (req, res, next) => {
         _id: { $in: productCategory },
       })
       .select("name");
-      console.log("category list ",categoriesList)
+    console.log("category list ", categoriesList);
     const categoryNames = categoriesList.map((cat) => cat.name);
     console.log("categoryNames ", categoryNames);
     const categoryString = categoryNames.join(", ");

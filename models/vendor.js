@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-// Custom password validator function
+// Custom password validator function - More flexible special characters
 const passwordValidator = function (password) {
   // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+  // Expanded special characters to include more common ones
   const passwordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#^()_+\-=\[\]{};':"\\|,.<>\/?~`])[A-Za-z\d@$!%*?&.#^()_+\-=\[\]{};':"\\|,.<>\/?~`]{8,}$/;
   return passwordRegex.test(password);
 };
 
@@ -32,7 +33,7 @@ const vendorSchema = new mongoose.Schema(
       validate: {
         validator: passwordValidator,
         message:
-          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)",
+          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
       },
       select: false, // Don't include password in queries by default
     },
@@ -87,11 +88,13 @@ const vendorSchema = new mongoose.Schema(
       trim: true,
       maxlength: [1000, "Description cannot exceed 1000 characters"],
     },
-    productCategory:[ {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
-      required: [true, "Product category is required"],
-    }],
+    productCategory: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category",
+        required: [true, "At least one product category is required"],
+      },
+    ],
     avatar: {
       url: {
         type: String,
@@ -329,7 +332,7 @@ vendorSchema.statics.updateExpiredSubscriptions = async function () {
   return expiredVendors.length;
 };
 
-// ✅ Static method to validate password strength
+// ✅ Static method to validate password strength - Updated with more flexible special characters
 vendorSchema.statics.validatePassword = function (password) {
   const errors = [];
 
@@ -354,9 +357,9 @@ vendorSchema.statics.validatePassword = function (password) {
     errors.push("Password must contain at least one number");
   }
 
-  if (!/[@$!%*?&]/.test(password)) {
+  if (!/[@$!%*?&.#^()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
     errors.push(
-      "Password must contain at least one special character (@$!%*?&)"
+      "Password must contain at least one special character (e.g., @$!%*?&.#^()_+-=[]{})"
     );
   }
 
@@ -367,5 +370,6 @@ vendorSchema.statics.validatePassword = function (password) {
 vendorSchema.index({ email: 1 });
 vendorSchema.index({ isApproved: 1, isLocked: 1 });
 vendorSchema.index({ "subscription.endDate": 1 });
+vendorSchema.index({ productCategory: 1 }); // Add index for category queries
 
 module.exports = mongoose.model("Vendor", vendorSchema);

@@ -1,4 +1,6 @@
 const express = require("express");
+const multer = require("multer");
+const path = require("path");
 const router = express.Router();
 
 // Import vendor registration controllers
@@ -17,11 +19,47 @@ const {
   approveVendor,
   toggleLockVendor,
   searchVendors,
-  createVendor ,
+  createVendor,
   getVendorAnalytics,
 } = require("../controllers/Vendors/vendorsController");
+
 // Import auth middleware
 const { protectSuperAdmin } = require("../middlewares/auth");
+
+// Configure multer for avatar uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(process.cwd(), "uploads", "avatars"));
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, `vendor-avatar-${uniqueSuffix}${path.extname(file.originalname)}`);
+  },
+});
+
+// File filter for images only
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp/;
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error("Only image files are allowed (JPEG, PNG, GIF, WebP)"));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: fileFilter,
+});
 
 // ===== PUBLIC ROUTES (No Authentication) =====
 
@@ -50,7 +88,7 @@ router.post("/signup", signupVendor);
 router.get("/admin/analytics", protectSuperAdmin, getVendorAnalytics);
 
 // @desc    Get all vendors with advanced filters and pagination
-// @route   GET /api/vendor/admin/all?page=1&limit=20&isApproved=true&isLocked=false&isActive=true&category=id&search=keyword&sortBy=createdAt&sortOrder=desc&subscriptionStatus=active
+// @route   GET /api/vendor/admin/all
 // @access  Private (Admin)
 router.get("/admin/all", protectSuperAdmin, getAllVendors);
 
@@ -72,7 +110,6 @@ router.delete("/admin/:vendorId", protectSuperAdmin, deleteVendor);
 // @desc    Update vendor subscription (extend, change plan, etc.)
 // @route   PATCH /api/vendor/admin/:vendorId/subscription
 // @access  Private (Admin)
-// @body    { duration: number, maxProductLimit: number, startDate: string }
 router.patch(
   "/admin/:vendorId/subscription",
   protectSuperAdmin,
@@ -82,13 +119,11 @@ router.patch(
 // @desc    Approve or reject vendor manually
 // @route   PATCH /api/vendor/admin/:vendorId/approve
 // @access  Private (Admin)
-// @body    { isApproved: boolean, reason: string }
 router.patch("/admin/:vendorId/approve", protectSuperAdmin, approveVendor);
 
 // @desc    Toggle vendor lock status (lock/unlock)
 // @route   PATCH /api/vendor/admin/:vendorId/toggle-lock
 // @access  Private (Admin)
-// @body    { reason: string, force: boolean }
 router.patch(
   "/admin/:vendorId/toggle-lock",
   protectSuperAdmin,
@@ -244,8 +279,21 @@ router.patch(
   }
 );
 
+// ===== VENDOR CREATION (Admin) =====
+
+// @desc    Create new vendor (admin only) - WITH AVATAR UPLOAD SUPPORT
+// @route   POST /api/vendor/admin/create-vendor
+// @access  Private (Admin)
+// @note    Use multipart/form-data for avatar upload, or JSON without avatar
+router.post(
+  "/admin/create-vendor",
+  protectSuperAdmin,
+  upload.single("avatar"),
+  createVendor
+);
+
 // ===== SUBSCRIPTION MANAGEMENT ROUTES (Admin) =====
-router.post("/admin/create-vendor", protectSuperAdmin,createVendor);
+
 // @desc    Get subscription statistics
 // @route   GET /api/vendor/admin/subscription-stats
 // @access  Private (Admin)
@@ -357,35 +405,5 @@ router.get(
     }
   }
 );
-
-// ===== ERROR HANDLING =====
-
-// 404 handler for unmatched vendor routes
-// router.use("*", (req, res) => {
-//   res.status(404).json({
-//     success: false,
-//     message: `Vendor route ${req.method} ${req.originalUrl} not found`,
-//     availableRoutes: {
-//       public: {
-//         search: "GET /api/vendor/search",
-//         sendOtp: "POST /api/vendor/send-otp",
-//         signup: "POST /api/vendor/signup",
-//       },
-//       admin: {
-//         analytics: "GET /api/vendor/admin/analytics",
-//         allVendors: "GET /api/vendor/admin/all",
-//         singleVendor: "GET /api/vendor/admin/:vendorId",
-//         updateVendor: "PUT /api/vendor/admin/:vendorId",
-//         deleteVendor: "DELETE /api/vendor/admin/:vendorId",
-//         updateSubscription: "PATCH /api/vendor/admin/:vendorId/subscription",
-//         approve: "PATCH /api/vendor/admin/:vendorId/approve",
-//         toggleLock: "PATCH /api/vendor/admin/:vendorId/toggle-lock",
-//         bulkApprove: "PATCH /api/vendor/admin/bulk-approve",
-//         bulkSubscription: "PATCH /api/vendor/admin/bulk-subscription",
-//         subscriptionStats: "GET /api/vendor/admin/subscription-stats",
-//       },
-//     },
-//   });
-// });
 
 module.exports = router;

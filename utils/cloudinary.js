@@ -292,6 +292,11 @@ const replaceOnCloudinary = async (
 /**
  * Create upload directories if they don't exist
  */
+// Add this to your cloudinary.js file in the createUploadDirectories function
+
+/**
+ * Create upload directories if they don't exist
+ */
 const createUploadDirectories = () => {
   // Using absolute paths for Windows
   const baseDir = path.join(process.cwd(), "uploads");
@@ -299,6 +304,8 @@ const createUploadDirectories = () => {
     baseDir,
     path.join(baseDir, "products"),
     path.join(baseDir, "avatars"),
+    path.join(baseDir, "categories"),
+    path.join(baseDir, "banners"), // Add this line
   ];
 
   dirs.forEach((dir) => {
